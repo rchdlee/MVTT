@@ -134,5 +134,5 @@ def create_master_file(parent_dir: Path, folders: list):
         master_df = pd.concat(master_data, ignore_index=True)
         master_file_save_path = parent_dir / f"MASTERDATA_{date.today()}.csv"
         master_df.to_csv(master_file_save_path, index=False)
-        print(f"Saved master data to {master_file_save_path}")
+        print(f"\nSaved master data to {master_file_save_path}")
 
