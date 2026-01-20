@@ -14,4 +14,5 @@ def batch_analyze_eventdata(root_dir: Path, create_master: bool = False): # pare
     if create_master:
         utils.create_master_file(root_dir, mvt_data_files)
 
-batch_analyze_eventdata(Path(r"C:\Users\rlee21\Documents\MVT\MVTT_testing"), True)
+# batch_analyze_eventdata(Path(r"C:\Users\rlee21\Documents\MVT\MVTT_testing"), True)
+batch_analyze_eventdata(Path(r"C:\Users\Richard\_Vork\MVT\ERa_KO"), True)
