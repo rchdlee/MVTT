@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 from datetime import date
 from pathlib import Path 
@@ -13,6 +14,8 @@ import helpers
 # process_event_data
 # summarize_event_data
 # create_master_file
+# create_group_summary_bymouse
+# create_group_summary_byrun
 #
 
 # Process _eventdata.csv into _eventdata_processed.csv
@@ -135,4 +138,130 @@ def create_master_file(parent_dir: Path, folders: list):
         master_file_save_path = parent_dir / f"MASTERDATA_{date.today()}.csv"
         master_df.to_csv(master_file_save_path, index=False)
         print(f"\nSaved master data to {master_file_save_path}")
+
+def create_group_summary_bymouse(group_folder: Path):
+    # Get all summary files inside group folder
+    summary_files = list(group_folder.rglob("*_summary.csv"))
+
+    # Collect data from all summary files
+    group_data = []
+    for file in summary_files:
+        temp_df = pd.read_csv(file)
+        group_data.append(temp_df)
+    df = pd.concat(group_data, ignore_index=True)
+
+    # Sort and reorder df
+    df = df.sort_values(by=["Mouse", "run"])
+    df = df[["cohort", "Mouse", "run", "void", "leak", "Avg Void Vol (ul)", "date", "group"]]
+
+    # Set up logic for creating summary file 
+    mouse_data = list(df.groupby("Mouse"))
+    total_mice = len(mouse_data)
+
+    results = []
+    averages = []
+    empty_row_df = pd.DataFrame([[None] * len(df.columns)], columns=df.columns).fillna("")
+
+    # Loop through mouse_data and add summarized version to results and averages
+    for i, (mouse, group) in enumerate(mouse_data):
+        # Add Run1, Run2 data to results
+        results.append(group)
+
+        # Calculate summary values
+        avg_void = group['void'].mean()
+        avg_leak = group['leak'].mean()
+        wavv = (group["Avg Void Vol (ul)"] * group["void"]).sum() / group["void"].sum() if group["void"].sum() > 0 else np.nan
+
+        # Create summary row
+        summary_row = group.iloc[[0]].copy()
+        summary_row["void"] = avg_void
+        summary_row["leak"] = avg_leak
+        summary_row["Avg Void Vol (ul)"] = wavv
+        summary_row['run'] = "AVERAGE"
+
+        # Add summary row to results then an empty row
+        results.append(summary_row)
+        results.append(empty_row_df)
+
+        # Add summary row to averages. Add three empty rows once all summaries have been completed
+        averages.append(summary_row)
+        if (i == total_mice - 1): 
+            averages.append(empty_row_df)
+            averages.append(empty_row_df)
+            averages.append(empty_row_df)
+        
+    # Combine averages and results lists so that the summary csv has averages on the top, then followed by data for each mouse
+    summary_start_with_avg = averages + results
+    summary_df = pd.concat(summary_start_with_avg, ignore_index=True)
+
+    # Save csv
+    group_name = group_folder.stem
+    summary_csv_path = group_folder / f"{group_name.upper()}_SUMMARY_BY_MOUSE.csv"
+    summary_df.to_csv(summary_csv_path, index=False)
+    print(f"Summary by mouse saved to: {summary_csv_path}")
+
+def create_group_summary_byrun(group_folder: Path):
+    # Get all summary files inside group folder
+    summary_files = list(group_folder.rglob("*_summary.csv"))
+
+    # Collect data from all summary files
+    group_data = []
+    for file in summary_files:
+        temp_df = pd.read_csv(file)
+        group_data.append(temp_df)
+    df = pd.concat(group_data, ignore_index=True)
+
+    # Sort and reorder df
+    df = df.sort_values(by=["Mouse", "run"])
+    df = df[["cohort", "run", "Mouse", "void", "leak", "Avg Void Vol (ul)", "date", "group"]]
+
+    # Set up logic for creating summary file
+    results = []
+
+    # Loop through df grouped by run and add summarized version to results
+    for run, mouse_data in df.groupby("run"):
+        # Add mouse data by run to results list
+        results.append(mouse_data)
+
+        # Calculate summary values
+        avg_void = mouse_data['void'].mean()
+        avg_leak = mouse_data['leak'].mean()
+        avv = mouse_data["Avg Void Vol (ul)"].mean()
+
+        # Create summary row
+        summary_row = mouse_data.iloc[0].copy()
+        summary_row["void"] = avg_void
+        summary_row["leak"] = avg_leak
+        summary_row["Avg Void Vol (ul)"] = avv
+        summary_row['Mouse'] = "AVERAGE"
+
+        # Empty row
+        empty_row = {col: [""] for col in df.columns}
+
+        # Add summary for the run followed by an empty row
+        results.append(pd.DataFrame([summary_row]))
+        results.append(pd.DataFrame(empty_row))
+
+    # Create run summary df and save as csv
+    summary_df = pd.concat(results, ignore_index=True)
+    group_name = group_folder.stem
+    summary_csv_path = group_folder / f"{group_name.upper()}_SUMMARY_BY_RUN.csv"
+    summary_df.to_csv(summary_csv_path, index=False)
+    print(f"Summary by run saved to: {summary_csv_path}\n")
+
+
+
+
+
+
+
+
+
+
+    ####################################################
+    ####################################################
+    # # PLOT
+    ####################################################
+    
+    ####################################################
 

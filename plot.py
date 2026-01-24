@@ -28,14 +28,6 @@ def plot_averaged_data(root_dir: Path, groups_to_plot: list, comparison_name: st
     master_df = pd.read_csv(master_csv_path)
     print("MASTERDF:",master_df)
 
-    # 1. Check the data types
-    print(f"Column Type: {master_df['group'].dtype}")
-    print(f"List Item Type: {type(groups_to_plot[0])}")
-
-    # 2. Look for hidden spaces (using repr() to show quotes and spaces)
-    print("Actual values in Column:", master_df["group"].unique()[:5])
-    print("Requested values in List:", groups_to_plot)
-
     # Filter master_df by groups_to_plot
     plot_df = master_df[master_df["group"].isin(groups_to_plot)].copy()
     print("\n\nPLOTDF", plot_df)
@@ -416,6 +408,142 @@ def plot_sequential_data(root_dir: Path, plot_title:str, groups_to_plot: list, m
 
             plt.tight_layout()
             plot_file_name = save_path / f"SEQUENTIAL_{plot_title}_{metric}.png"
+            # plt.savefig(plot_file_name, dpi=300, bbox_inches="tight")
+            plt.show()
+
+def plot_sequential_data_normalized(root_dir: Path, plot_title:str, groups_to_plot: list, mice_to_exclude: list, runs_to_exclude: list):
+    # Setup directories
+    today = date.today().strftime("%Y-%m-%d")
+    save_path = Path(root_dir / "__PLOTS__" / f"Normalized_data_{plot_title}_{today}")
+    save_path.mkdir(parents=True, exist_ok=True)
+    
+    # Load MASTERDATA csv as master_df
+    master_csv_path = list(root_dir.glob("MASTERDATA*"))[0]
+    master_df = pd.read_csv(master_csv_path)
+
+    # Filter master_df by groups_to_plot
+    plot_df = master_df[master_df["group"].isin(groups_to_plot)].copy()
+    # print(plot_df)
+    
+    # Bool to deterimine whether to plot Run1 vs Run2 or groups
+    is_single_group = len(groups_to_plot) == 1
+
+
+    mouse_filtered_df = plot_df[~plot_df["Mouse"].isin(mice_to_exclude)]
+    mouse_run_filtered_df = mouse_filtered_df[~plot_df["run"].isin(runs_to_exclude)]
+    processed_df = mouse_run_filtered_df.copy()
+    processed_df["run"] = processed_df["run"].astype(str)
+
+    normalizer = "Baseline2"
+    baseline_df = processed_df[processed_df["run"] == normalizer].set_index("Mouse")
+
+    cols_to_norm = ["void", "leak", "Avg Void Vol (ul)"]
+    for col in cols_to_norm:
+        baseline_values_df = processed_df["Mouse"].map(baseline_df[col])
+        processed_df[f"{col} (% change)"] = ((processed_df[col] - baseline_values_df) / baseline_values_df) * 100
+        processed_df[f"{col} (raw change)"] = (processed_df[col] - baseline_values_df)
+    # print(processed_df)
+
+    x_axis = "run"
+    # metrics_to_plot = []
+    metrics_to_plot = [r"void (% change)", r"leak (% change)", r"Avg Void Vol (ul) (% change)"]
+    # metrics_to_plot = [r"void (raw change)", r"leak (raw change)", r"Avg Void Vol (ul) (raw change)"]
+
+
+    for metric in metrics_to_plot:
+        plt.figure(figsize=(9,6))
+
+        
+        if is_single_group:
+            # Setup varaibles
+            run_order = sorted(processed_df[x_axis].unique())
+            processed_df[x_axis] = processed_df[x_axis].astype(str)
+            # Scatter point jitter logic
+            unique_mice = processed_df["Mouse"].unique()
+            jitter_map = {mouse: (i - len(unique_mice) / 2) * 0.05 for i, mouse in enumerate(unique_mice)}
+            run_map = {val: i for i, val in enumerate(run_order)}
+            processed_df["x_numeric"] = processed_df[x_axis].map(run_map) + processed_df["Mouse"].map(jitter_map)
+            # Legend Label
+            processed_df["Legend Label"] = processed_df.apply(
+                lambda row: f"{row["Mouse"]} ({row["cohort"]})",
+                axis=1
+                )
+            # print("starting to plot\n", processed_df)
+            # Plot
+            sns.barplot(
+                data=processed_df, 
+                x=x_axis, 
+                y=metric,
+                order=run_order,
+                alpha=0.3,
+                width=0.6,
+                gap=0,
+                color="gray",
+                capsize=0.05
+                )
+            sns.lineplot(
+                data=processed_df,
+                # x=x_axis,
+                x="x_numeric", 
+                y=metric,
+                units="Mouse",
+                estimator=None,
+                # color="black",
+                hue="Legend Label",
+                palette="tab10",
+                legend=False,
+                alpha=0.4,
+                linewidth=1,
+            )
+            sns.scatterplot(
+                data=processed_df, 
+                # x=x_axis, 
+                x="x_numeric", 
+                y=metric,
+                # hue="Mouse",
+                hue="Legend Label",
+                palette="tab10",
+                s=40,
+                edgecolor="gray",
+                linewidth=1,
+                zorder=2
+                )
+
+            plt.title(f"{plot_title}:\n {metric.upper()}")
+            plt.legend(title="Mice", bbox_to_anchor=(1.05, 1), loc="upper left")
+
+            # y_max = processed_df[metric].max()
+            # y_min = processed_df[metric].min()
+            # if y_max > abs(y_min):
+            #     plt.ylim([y_max * -1.5, y_max * 1.5])
+            # else:
+            #     plt.ylim([abs(y_min) * -1.5, abs(y_min) * 1.5])
+
+
+            plt.ylim([-300,300])
+            ticks = np.arange(-300, 301, 10)
+            labels = [str(t) if t % 50 == 0 else "" for t in ticks]
+            plt.yticks(ticks, labels)
+            plt.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.7)
+            bold_lines = [-200, -100, 0, 100, 200]
+
+            for val in bold_lines:
+                plt.axhline(y=val, color='gray', linewidth=0.5, alpha=0.8, zorder=1)
+
+
+            if metric == "void":
+                # plt.ylim([0,10])
+                plt.ylabel(f"{metric.capitalize()} count")
+            # if metric == "leak":
+                # plt.ylim([0,20])
+            if metric == "Avg Void Vol (ul)":
+                # plt.ylim([0,1200])
+                # plt.ylim([0,750])
+                plt.ylabel(f"{metric.capitalize()}")
+
+
+            plt.tight_layout()
+            plot_file_name = save_path / f"SEQUENTIAL_{plot_title}_{metric}.png"
             plt.savefig(plot_file_name, dpi=300, bbox_inches="tight")
             # plt.show()
 
@@ -424,7 +552,9 @@ def plot_sequential_data(root_dir: Path, plot_title:str, groups_to_plot: list, m
 #======================================================================================================================
 
 #########################################################################
-project_dir = Path(r"C:\Users\Richard\_Vork\MVT\data\averaged_runs_new")
+# project_dir = Path(r"C:\Users\Richard\_Vork\MVT\data\averaged_runs_new")
+# project_dir = Path(r"C:\Users\rlee21\Documents\MVT\MVT_files\averaged_runs")
+# project_dir = Path(r"C:\Users\rlee21\Documents\MVT\MVT_files\averaged_runs_newcleancopy2")
 #########################################################################
 
 groups = ["TeenF", "AdultF", "MenoF", "Nulliparous", "Parous", "VCD", "TeenM", "AdultM", "OldMales"]
@@ -434,26 +564,35 @@ def plot_every_individual_group():
     for group in groups:
         plot_averaged_data(project_dir, [group], group.capitalize())
 
-plot_every_individual_group()
-plot_averaged_data(project_dir, ["TeenF", "AdultF", "MenoF", "Nulliparous", "Parous", "VCD", "TeenM", "AdultM", "OldMales"], "Comparing All Cohorts")
+# plot_every_individual_group()
 
-plot_averaged_data(project_dir, ["Nulliparous", "Parous", "VCD", "MenoF", "AdultF", "TeenF", ], "Comparing Female Cohorts")
-plot_averaged_data(project_dir, ["TeenM", "AdultM", "OldMales"], "Comparing Male Cohorts")
-plot_averaged_data(project_dir, ["Nulliparous", "Parous", "MenoF"], "Parity")
-plot_averaged_data(project_dir, ["Nulliparous", "Parous", "MenoF", "VCD"], "Old Female Mice")
-plot_averaged_data(project_dir, ["Nulliparous", "Parous", "MenoF"], "Parity")
-plot_averaged_data(project_dir, ["TeenF", "TeenM"], "TeenF vs. TeenM")
-plot_averaged_data(project_dir, ["AdultF", "AdultM"], "AdultF vs. AdultM")
-plot_averaged_data(project_dir, ["AdultF", "MenoF", "Nulliparous", "Parous", "VCD"], "Females without TeenF")
+# plot_averaged_data(project_dir, ["TeenF", "AdultF", "MenoF", "Nulliparous", "Parous", "VCD", "TeenM", "AdultM", "OldMales"], "Comparing All Cohorts")
+
+# plot_averaged_data(project_dir, ["Nulliparous", "Parous", "VCD", "MenoF", "AdultF", "TeenF", ], "Comparing Female Cohorts")
+# plot_averaged_data(project_dir, ["TeenM", "AdultM", "OldMales"], "Comparing Male Cohorts")
+# plot_averaged_data(project_dir, ["Nulliparous", "Parous", "MenoF"], "Parity")
+# plot_averaged_data(project_dir, ["Nulliparous", "Parous", "MenoF", "VCD"], "Old Female Mice")
+# plot_averaged_data(project_dir, ["Nulliparous", "Parous", "MenoF"], "Parity")
+# plot_averaged_data(project_dir, ["TeenF", "TeenM"], "TeenF vs. TeenM")
+# plot_averaged_data(project_dir, ["AdultF", "AdultM"], "AdultF vs. AdultM")
+# plot_averaged_data(project_dir, ["AdultF", "MenoF", "Nulliparous", "Parous", "VCD"], "Females without TeenF")
+# plot_averaged_data(project_dir, ["MenoF", "Nulliparous", "Parous", "VCD"], "Females without TeenF or AdultF")
+# plot_averaged_data(project_dir, ["TeenF", "AdultF", "MenoF"], "CLS Females")
+# plot_averaged_data(project_dir, ["Nulliparous", "Parous", "VCD"], "Tufts Females")
 
 # #########################################################################
 # project_dir = Path(r"C:\Users\Richard\_Vork\MVT\ERa_KO")
+# project_dir = Path(r"C:\Users\rlee21\Documents\MVT\MVT_files\ERa_KO")
+project_dir = Path(r"C:\Users\rlee21\Documents\MVT\Penk_FRT_Gq")
 # #########################################################################
 
 # ##plotsequentialdata: project dir,
 # # plot_sequential_data(project_dir, "ERa-KO Females - ALL mice including miss", ["ELF"], [], [])
 # # plot_sequential_data(project_dir, "ERa-KO Females - only bilateral hits", ["ELF"], [4203, 4260, 4990, 4991, 4988], [])
-# # plot_sequential_data(project_dir, "ELF1 Hits", ["ELF"], [])
+# plot_sequential_data(project_dir, "ELF1 Misses or Unilat", ["ELF"], [4989, 4202, 4204], [])
+plot_sequential_data(project_dir, "CohPM18", ["Penk_FRT_Gq"], [], [])
+
+
 
 # # ELM1 || ELM2
 # # 3658 || 4495
@@ -465,3 +604,57 @@ plot_averaged_data(project_dir, ["AdultF", "MenoF", "Nulliparous", "Parous", "VC
 # plot_sequential_data(project_dir, "ELM2", ["ELM"], [3658, 3659, 3524, 3525, 4496, 4470], [])
 # plot_sequential_data(project_dir, "ERa-KO Males - only bilateral hits", ["ELM"], [4496, 4470], [])
 # plot_sequential_data(project_dir, "ERa-KO Males - Control", ["ELM"], [3658, 3659, 3524, 3525, 4495, 4496, 4497], [])
+
+# plot_sequential_data_normalized(project_dir, "ELM1", ["ELM"], [4495, 4496, 4497, 4470], ["Baseline1"])
+# plot_sequential_data_normalized(project_dir, "ELM2", ["ELM"], [3658, 3659, 3524, 3525, 4496, 4470], ["Baseline1"])
+# plot_sequential_data_normalized(project_dir, "ERa-KO Males - only bilateral hits", ["ELM"], [4496, 4470], ["Baseline1"])
+
+
+
+# plot_sequential_data_normalized(project_dir, "ERa-KO Females - only bilateral hits - % Change", ["ELF"], [4203, 4260, 4990, 4991, 4988], ["Baseline1"])
+# plot_sequential_data_normalized(project_dir, "ERa-KO Males - only bilateral hits - % Change", ["ELM"], [4496, 4470], ["Baseline1"])
+
+# plot_sequential_data_normalized(project_dir, "ERa-KO Females - only bilateral hits - Raw Change", ["ELF"], [4203, 4260, 4990, 4991, 4988], ["Baseline1"])
+# plot_sequential_data_normalized(project_dir, "ERa-KO Males - only bilateral hits - Raw Change", ["ELM"], [4496, 4470], ["Baseline1"])
+
+
+
+
+
+
+
+
+
+#
+#
+#
+#
+#
+
+
+# project_dir = Path(r"C:\Users\rlee21\Documents\MVT\MVT_files\averaged_runs")
+
+
+# def plot_parity(root_dir: Path):
+#     # setup directory
+
+#     # Load MASTERDATA csv as master_df
+#     master_csv_path = list(root_dir.glob("MASTERDATA*"))[0]
+#     master_df = pd.read_csv(master_csv_path)
+
+#     processed_df = master_df.groupby(["Mouse", "group"]).apply(
+#     lambda x: pd.Series({
+#         "void": x["void"].mean(),
+#         "leak": x["leak"].mean(),
+#         "wavv": (x["Avg Void Vol (ul)"] * x["void"]).sum() / x["void"].sum() if x["void"].sum() > 0 else np.nan,
+#         "parity": x["Parity"],
+#     }),
+#     include_groups=False
+#     ).reset_index()
+
+#     x_axis = "group"
+#     metrics_to_plot = ["void", "leak", "wavv"]
+
+#     print(processed_df)
+
+# plot_parity(project_dir)

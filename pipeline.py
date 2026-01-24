@@ -14,5 +14,25 @@ def batch_analyze_eventdata(root_dir: Path, create_master: bool = False): # pare
     if create_master:
         utils.create_master_file(root_dir, mvt_data_files)
 
+def create_group_summaries(parent_dir: Path, group_folder_names: list):
+    for group in group_folder_names:
+        group_dir = parent_dir / group
+        utils.create_group_summary_bymouse(group_dir)
+        utils.create_group_summary_byrun(group_dir)
+
+
+# ######################################################################################################
+# ######################################################################################################
+
 # batch_analyze_eventdata(Path(r"C:\Users\rlee21\Documents\MVT\MVTT_testing"), True)
-batch_analyze_eventdata(Path(r"C:\Users\Richard\_Vork\MVT\ERa_KO"), True)
+# batch_analyze_eventdata(Path(r"C:\Users\Richard\_Vork\MVT\ERa_KO"), True)
+batch_analyze_eventdata(Path(r"C:\Users\rlee21\Documents\MVT\Penk_FRT_Gq"), True)
+
+
+# create_group_summaries(
+#     Path(r"C:\Users\rlee21\OneDrive - Beth Israel Lahey Health\Verstegen-lab Shared OneDrive\ERa Project\MVT\MVT_files\averaged_runs"), 
+#     ["AdultF_combined", "GSAdultM", "GSTeenM", "Machado Old Females", "MenoF_bymouse", "Nulliparous", "OldMales", "Parous", "TeenF_combined", "VCD"]
+#     )
+
+# utils.create_group_summary_bymouse(Path(r"C:\Users\rlee21\OneDrive - Beth Israel Lahey Health\Verstegen-lab Shared OneDrive\ERa Project\MVT\MVT_files\averaged_runs\VCD"))
+# utils.create_group_summary_byrun(Path(r"C:\Users\rlee21\OneDrive - Beth Israel Lahey Health\Verstegen-lab Shared OneDrive\ERa Project\MVT\MVT_files\averaged_runs\VCD"))
