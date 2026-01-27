@@ -583,14 +583,15 @@ def plot_every_individual_group():
 # #########################################################################
 # project_dir = Path(r"C:\Users\Richard\_Vork\MVT\ERa_KO")
 # project_dir = Path(r"C:\Users\rlee21\Documents\MVT\MVT_files\ERa_KO")
-project_dir = Path(r"C:\Users\rlee21\Documents\MVT\Penk_FRT_Gq")
+# project_dir = Path(r"C:\Users\rlee21\Documents\MVT\Penk_FRT_Gq")
+project_dir = Path(r"C:\Users\Richard\_Vork\Penk_FRT_Gq")
 # #########################################################################
 
 # ##plotsequentialdata: project dir,
 # # plot_sequential_data(project_dir, "ERa-KO Females - ALL mice including miss", ["ELF"], [], [])
 # # plot_sequential_data(project_dir, "ERa-KO Females - only bilateral hits", ["ELF"], [4203, 4260, 4990, 4991, 4988], [])
 # plot_sequential_data(project_dir, "ELF1 Misses or Unilat", ["ELF"], [4989, 4202, 4204], [])
-plot_sequential_data(project_dir, "CohPM18", ["Penk_FRT_Gq"], [], [])
+plot_sequential_data(project_dir, "Penk FRT Gq", ["Penk_FRT_Gq"], [], [])
 
 
 

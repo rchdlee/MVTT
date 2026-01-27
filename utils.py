@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from datetime import date
 from pathlib import Path 
@@ -252,16 +254,90 @@ def create_group_summary_byrun(group_folder: Path):
 
 
 
+####################################################
+####################################################
+# # PLOT
+####################################################
+# plot_sequential_data
+####################################################
 
+def plot_sequential_data(root_dir: Path, plot_title:str, groups_to_plot: list, mice_to_exclude: list, runs_to_include: list):
+    # Set up directories
+    today = date.today().strftime("%Y%m%d")
+    save_path = root_dir / "__PLOTS__" / f"{plot_title}_{today}"
+    save_path.mkdir(parents = True, exist_ok = True)
 
+    # Load MASTERDATA csv as master df
+    master_csv_path = list(root_dir.glob("MASTERDATA*"))[0]
+    master_df = pd.read_csv(master_csv_path)
 
+    # Filter and convert run column to str
+    processed_df = (master_df[master_df["group"].isin(groups_to_plot) &
+                              ~master_df["Mouse"].isin(mice_to_exclude)] 
+                    .copy())
+    processed_df["run"] = processed_df["run"].astype(str)
 
+    # Loop through these to create graphs
+    metrics_to_plot = ["void", "leak", "Avg Void Vol (ul)"]
+    for metric in metrics_to_plot:
+        plt.figure(figsize=(9,6))
 
+        # Create a map for x-axis jitter for scatter plot and x position from runs_to_include
+        unique_mice = processed_df["Mouse"].unique()
+        jitter_map = {mouse: (i - len(unique_mice) / 2) * 0.05 for i, mouse in enumerate(unique_mice)}
+        run_map = {val: i for i, val in enumerate(runs_to_include)}
 
-    ####################################################
-    ####################################################
-    # # PLOT
-    ####################################################
-    
-    ####################################################
+        processed_df["x_numeric"] = processed_df["run"].map(run_map) + processed_df["Mouse"].map(jitter_map)
+        processed_df["Legend Label"] = processed_df.apply(
+            lambda row: f"{row["Mouse"]} ({row["cohort"]})",
+            axis=1
+        )
 
+        # Plot
+        sns.barplot(
+            data=processed_df,
+            x="run",
+            y=metric,
+            order=runs_to_include,
+            alpha=0.3, 
+            width=0.6,
+            gap=0,
+            color="gray",
+            capsize=0.05
+        )
+        sns.lineplot(
+            data=processed_df,
+            x="x_numeric",
+            y=metric,
+            units="Mouse",
+            estimator=None,
+            color="gray",
+            alpha=0.4,
+            linewidth=1,
+        )   
+        sns.scatterplot(
+            data=processed_df,
+            x="x_numeric",
+            y=metric,
+            hue="Legend Label",
+            palette="tab10",
+            s=40,
+            edgecolor="gray",
+            linewidth=1
+        )
+        
+        # Plot settings
+        plt.title(f"{plot_title}: {metric.upper()}")
+        plt.legend(title="Mice", bbox_to_anchor=(1.05,1), loc="upper left")
+        plt.tight_layout()
+
+        # Save plot
+        plot_file_name = save_path / f"{metric.upper()}.png"
+        plt.savefig(plot_file_name, dpi=300, bbox_inches="tight")
+        print(f"Saved {plot_file_name}")
+        # plt.show()
+
+    # Save processed_df 
+    df_save_path = save_path / f"{plot_title}_plot_data.csv"
+    processed_df.to_csv(df_save_path, index=True)
+    print(f"Saved {df_save_path}")

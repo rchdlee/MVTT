@@ -20,13 +20,16 @@ def create_group_summaries(parent_dir: Path, group_folder_names: list):
         utils.create_group_summary_bymouse(group_dir)
         utils.create_group_summary_byrun(group_dir)
 
-
 # ######################################################################################################
 # ######################################################################################################
 
 # batch_analyze_eventdata(Path(r"C:\Users\rlee21\Documents\MVT\MVTT_testing"), True)
 # batch_analyze_eventdata(Path(r"C:\Users\Richard\_Vork\MVT\ERa_KO"), True)
-batch_analyze_eventdata(Path(r"C:\Users\rlee21\Documents\MVT\Penk_FRT_Gq"), True)
+# batch_analyze_eventdata(Path(r"C:\Users\rlee21\Documents\MVT\Penk_FRT_Gq"), True)
+# batch_analyze_eventdata(Path(r"C:\Users\Richard\_Vork\Penk_FRT_Gq"), True)
+
+
+utils.plot_sequential_data(Path(r"C:\Users\Richard\_Vork\Penk_FRT_Gq"), "Penk FRT Gq", ["Penk_FRT_Gq"], [], ["Veh1", "CNO1", "Veh2", "CNO2", "Veh3"])
 
 
 # create_group_summaries(
